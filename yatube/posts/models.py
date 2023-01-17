@@ -26,4 +26,4 @@ class Post(models.Model):
         ordering = ['-pub_date']
 
     def __str__(self):
-        return f'Автор {self.author} | Текст {self.text}'
+        return self.text[:15]

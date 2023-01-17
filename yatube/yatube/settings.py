@@ -12,7 +12,12 @@ SECRET_KEY = '_$^i8z8dlk)_f-6k6ni0+91@p!6(0souqllz4wv1+pbu+k$f(j'
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '[::1]',
+    'testserver',
+]
 
 # Application definition
 
