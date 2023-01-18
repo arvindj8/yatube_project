@@ -102,7 +102,7 @@ class PostsViewTests(TestCase):
         response = self.author_client.get(reverse('posts:index'))
         self.assertEqual(response.context.get('title'),
                          'Последние обновления на сайте')
-        first_object = response.context['page_obj'][0]
+        first_object = response.context.get('post')
         self._assert_post_has_attrs(first_object, self.post.id,
                                     self.post.author, self.post.group)
 
