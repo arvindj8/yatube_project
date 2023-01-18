@@ -1,23 +1,22 @@
-from django.test import TestCase, Client
 from http import HTTPStatus
-from django.urls import reverse
-from posts.models import Post, User, Group
+
+from django.test import Client, TestCase
+
+from posts.models import Group, Post, User
 
 
-class StaticURLTests(TestCase):
+class PostsURLTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        # Создадим запись в БД для проверки доступности адреса posts/<post_id>/create/
+        # Создадим запись в БД для проверки доступности адреса
+        # posts/<post_id>/create/
         cls.post = Post.objects.create(
             author=User.objects.create_user(username='TestUser123',
                                             email='test@ya.ru',
                                             password='testPass123'),
-            text='Test text')
-
-        cls.group = Group.objects.create(
-            title='Test title',
-            slug='test_slug'
+            text='Test text',
+            group=Group.objects.create(title='test title', slug='test_slug')
         )
 
     def setUp(self):
@@ -35,25 +34,29 @@ class StaticURLTests(TestCase):
         self.posts_author.force_login(self.user_author)
 
     def test_posts_urls_unauthorized(self):
-        """ Доступность всех страниц posts, для неавторизованного пользователя """
+        """Тестируем доступность общедоступных страниц posts,
+        для неавторизованного пользователя """
         template = [
             '/',
-            f'/group/{self.group.slug}/',
+            f'/group/{self.post.group.slug}/',
             f'/profile/{self.post.author.username}/',
+            f'/posts/{self.post.id}/',
         ]
         for url in template:
             response = self.guest_client.get(url)
             self.assertEqual(response.status_code, HTTPStatus.OK)
 
-    def test_posts_urls_authorized(self):
-        """Тестируем доступность всех страниц posts, для авторизованного пользователя"""
-        template = [
-            '/create/',
-            f'/posts/{self.post.id}/',
-        ]
-        for url in template:
-            response = self.authorized_client.get(url)
-            self.assertEqual(response.status_code, HTTPStatus.OK)
+    def test_create_post_urls_authorized(self):
+        """Тестируем доступность страницы /create/
+        для авторизованного пользователя"""
+        response = self.authorized_client.get('/create/')
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_create_post_urls_unauthorized(self):
+        """Тестируем доступность страницы /create/
+        для неавторизованного пользователя"""
+        response = self.guest_client.get('/create/')
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
 
     def test_page_edit_post(self):
         """Тестируем доступность страницы /edit/ только для автора поста"""
@@ -69,7 +72,7 @@ class StaticURLTests(TestCase):
         """Тестируем что URL адрес использует соответствующий шаблон"""
         templates_uses = {
             '/': 'posts/index.html',
-            f'/group/{self.group.slug}/': 'posts/group_list.html',
+            f'/group/{self.post.group.slug}/': 'posts/group_list.html',
             f'/profile/{self.post.author.username}/': 'posts/profile.html',
             '/create/': 'posts/create_post.html',
             f'/posts/{self.post.id}/': 'posts/post_detail.html',
