@@ -14,13 +14,21 @@ class Group(models.Model):
 
 
 class Post(models.Model):
-    text = models.TextField()
+    text = models.TextField(verbose_name='Текст поста',
+                            help_text='Текст нового поста')
     pub_date = models.DateTimeField(auto_now_add=True)
     author = models.ForeignKey(to=User, on_delete=models.CASCADE,
                                related_name='posts')
-    group = models.ForeignKey(to=Group, on_delete=models.SET_NULL,
+    group = models.ForeignKey(to=Group,
+                              verbose_name='Группа',
+                              help_text='Группа, к которой будет относиться '
+                                        'пост',
+                              on_delete=models.SET_NULL,
                               blank=True, null=True,
                               related_name='posts')
+    image = models.ImageField(verbose_name='Картинка',
+                              upload_to='posts/',
+                              blank=True)
 
     class Meta:
         ordering = ['-pub_date']

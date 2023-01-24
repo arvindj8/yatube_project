@@ -11,10 +11,9 @@ class PostsURLTests(TestCase):
         super().setUpClass()
         # Создадим запись в БД для проверки доступности адреса
         # posts/<post_id>/create/
+        cls.user = User.objects.create_user(username='TestUser123')
         cls.post = Post.objects.create(
-            author=User.objects.create_user(username='TestUser123',
-                                            email='test@ya.ru',
-                                            password='testPass123'),
+            author=cls.user,
             text='Test text',
             group=Group.objects.create(title='test title', slug='test_slug')
         )

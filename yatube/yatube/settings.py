@@ -30,6 +30,8 @@ INSTALLED_APPS = [
     'posts.apps.PostsConfig',
     'users.apps.UsersConfig',
     'core.apps.CoreConfig',
+
+    'sorl.thumbnail',
 ]
 
 MIDDLEWARE = [
@@ -108,8 +110,14 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+
+# Change template error 403
+CSRF_FAILURE_VIEW = 'core.views.csrf_failure'
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
