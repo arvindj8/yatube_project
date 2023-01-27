@@ -3,6 +3,7 @@ import tempfile
 from http import HTTPStatus
 
 from django import forms
+from django.core.cache import cache
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
@@ -22,6 +23,7 @@ class PostsViewTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        # Готовим картинку
         small_gif = (
             b'\x47\x49\x46\x38\x39\x61\x02\x00'
             b'\x01\x00\x80\x00\x00\x00\x00\x00'
@@ -30,7 +32,7 @@ class PostsViewTests(TestCase):
             b'\x02\x00\x01\x00\x00\x02\x02\x0C'
             b'\x0A\x00\x3B'
         )
-
+        # Загружаем картинку
         uploaded = SimpleUploadedFile(
             name='small.gif',
             content=small_gif,
@@ -50,6 +52,7 @@ class PostsViewTests(TestCase):
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
+        cache.clear()
         # Создаем автора поста
         self.author_client = Client()
         self.author_client.force_login(self.post.author)
@@ -185,6 +188,7 @@ class PaginatorViewsTest(TestCase):
             description='test_description',
             slug='test-slug'
         )
+        cache.clear()
 
     def setUp(self):
         for post_temp in range(ADDITIONAL_POSTS + settings.AMOUNT_POSTS):
@@ -212,7 +216,7 @@ class PaginatorViewsTest(TestCase):
                                  settings.AMOUNT_POSTS)
 
     def test_pages_contains_three_records(self):
-        # Остаток постов на второй странице равно 3.
+        """Проверка, что остаток постов на второй странице равно 3."""
         templates_paginator = self._paginator_pages()
         for reverse_name in templates_paginator:
             reverse_name += '?page=2'
@@ -220,3 +224,38 @@ class PaginatorViewsTest(TestCase):
                 response = self.guest_user.get(reverse_name)
                 self.assertEqual(len(response.context['page_obj']),
                                  ADDITIONAL_POSTS)
+
+
+class IndexPageCacheTest(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.user_author = User.objects.create_user(username='AuthorUser1')
+        cls.post = Post.objects.create(
+            author=cls.user_author,
+            text='Test text one',
+            group=Group.objects.create(title='test_group',
+                                       slug='test-slug'))
+
+    def setUp(self):
+        self.client = Client()
+
+    def test_main_page_cache(self):
+        cache.clear()
+        # Проверяем, что запись присутствует в содержимом ответа.
+        response = self.client.get(reverse('posts:index'))
+        self.assertContains(response, self.post.text)
+
+        # Далее удаляем запись из базы данных
+        self.post.delete()
+
+        # Удаленная запись все еще присутствует в содержимом ответа
+        response = self.client.get(reverse('posts:index'))
+        self.assertContains(response, self.post.text)
+
+        # Очищаем кэш
+        cache.clear()
+
+        # Проверяем, что удаленной записи больше нет в содержимом ответа
+        response = self.client.get(reverse('posts:index'))
+        self.assertNotContains(response, self.post.text)

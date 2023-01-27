@@ -7,7 +7,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from posts.forms import PostForm
-from posts.models import Group, Post, User
+from posts.models import Group, Post, User, Comment
 
 # Создаем временную папку для медиа-файлов;
 # на момент теста медиа папка будет переопределена
@@ -28,8 +28,10 @@ class PostCreateFormTests(TestCase):
             text='Test text one3',
             group=Group.objects.create(title='Заголовок для тестовой группы',
                                        slug='test_slug3',
-                                       description='Тестовое описание3')
-        )
+                                       description='Тестовое описание3'))
+        cls.comment = Comment.objects.create(post_id=cls.post.id,
+                                             author=cls.user,
+                                             text='Первый комментарий')
         cls.form = PostForm
 
     @classmethod
@@ -47,6 +49,12 @@ class PostCreateFormTests(TestCase):
         # Создаём авторизованный клиент-автор
         self.author_client = Client()
         self.author_client.force_login(self.post.author)
+
+    def _assert_post_has_attrs(self, comment, author, text):
+        """Проверка отображения постов при передаче в context"""
+        self.assertEqual(comment.id, self.comment.id)
+        self.assertEqual(comment.author, author)
+        self.assertEqual(comment.text, text)
 
     def _create_new_post(self, text, reverse_url, img=None):
         """Создает пост с разными данными"""
@@ -72,7 +80,7 @@ class PostCreateFormTests(TestCase):
     def test_create_post(self):
         """Валидная форма создает запись в Post."""
         # Проверка сколько постов до создания
-        tasks_count = Post.objects.count()
+        posts_count = Post.objects.count()
 
         # Создаем пост
         text = self.post.text
@@ -81,7 +89,7 @@ class PostCreateFormTests(TestCase):
 
         self.assertRedirects(response_create, reverse('posts:profile', kwargs={
             'username': self.post.author}))
-        self.assertEqual(Post.objects.count(), tasks_count + 1)
+        self.assertEqual(Post.objects.count(), posts_count + 1)
         self.assertTrue(Post.objects.filter(
             author=self.post.author,
             text=self.post.text,
@@ -107,7 +115,7 @@ class PostCreateFormTests(TestCase):
                                    kwargs={'post_id': self.post.id}))
         self.assertTrue(get_edit_post_text, get_post_text)
 
-    def test(self):
+    def test_send_post_with_img_create_record(self):
         """Тестируем, при отправке поста с картинкой через форму PostForm
         создаётся запись в базе данных."""
         # Проверка сколько постов до создания
@@ -142,3 +150,31 @@ class PostCreateFormTests(TestCase):
             text=self.post.text,
             group=self.post.group,
             image='posts/small.gif').exists())
+
+    def test_send_comment_correct_show_post_page_auth_user(self):
+        """После успешной отправки авторизованным пользователем
+        комментарий появляется на странице поста."""
+        count = Comment.objects.count()
+
+        # Создаем комментарий через post запрос
+        self.author_client.post(
+            reverse('posts:add_comment', kwargs={'post_id': self.post.id}),
+            data={'text': self.comment.text},
+            follow=True
+        )
+        # Проверяем что пост создался, после post запроса
+        self.assertEqual(Comment.objects.count(), count + 1)
+
+    def test_send_comment_correct_show_post_page_anonymous_user(self):
+        """После успешной отправки авторизованным пользователем
+        комментарий появляется на странице поста."""
+        count = Comment.objects.count()
+
+        # Создаем комментарий через post запрос
+        self.guest_client.post(
+            reverse('posts:add_comment', kwargs={'post_id': self.post.id}),
+            data={'text': self.comment.text},
+            follow=True
+        )
+        # Проверяем что пост создался, после post запроса
+        self.assertEqual(Comment.objects.count(), count)

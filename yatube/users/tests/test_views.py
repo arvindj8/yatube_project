@@ -3,6 +3,8 @@ from http import HTTPStatus
 from django import forms
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
 
 from posts.models import User
 
@@ -28,6 +30,8 @@ class UsersViewTests(TestCase):
 
     def test_templates_users_views(self):
         """Тестируем, что users/view используют соответствующий шаблон"""
+        # Получаем uid
+        uid = urlsafe_base64_encode(force_bytes(self.user.id))
         templates_uses = {
             'users/signup.html': reverse('users:signup'),
             'users/login.html': reverse('login'),
@@ -41,7 +45,7 @@ class UsersViewTests(TestCase):
                 reverse('users:password_reset_done'),
             'users/password_reset_confirm.html':
                 reverse('users:password_reset_confirm',
-                        kwargs={'uidb64': 'NA', 'token': self._get_token()}),
+                        kwargs={'uidb64': uid, 'token': self._get_token()}),
             'users/password_reset_complete.html':
                 reverse('users:password_reset_complete'),
             'users/logged_out.html': reverse('users:logout')
