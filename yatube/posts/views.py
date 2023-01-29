@@ -5,7 +5,7 @@ from django.views.decorators.cache import cache_page
 
 from core.my_functions.pagination import pagination
 from posts.forms import PostForm, CommentForm
-from posts.models import Group, Post, User
+from posts.models import Group, Post, User, Follow
 
 
 @cache_page(20, key_prefix='index_page')
@@ -34,10 +34,17 @@ def group_posts(request, slug):
 def profile(request, username):
     author = get_object_or_404(User, username=username)
     posts = author.posts.select_related('group')
+    follow = author.following.select_related('user')
+    if follow:
+        following = True
+    else:
+        following = False
+
     context = {
         'page_obj': pagination(request, posts, settings.AMOUNT_POSTS),
         'posts': posts,
-        'author': author
+        'author': author,
+        'following': following
     }
     return render(request, 'posts/profile.html', context)
 
@@ -98,3 +105,35 @@ def add_comment(request, post_id):
         comment.post = post
         comment.save()
     return redirect('posts:post_detail', post_id=post_id)
+
+
+@login_required
+def follow_index(request):
+    following = Follow.objects.filter(
+        user=request.user).values_list('author', flat=True)
+    posts = Post.objects.filter(author__in=following)
+    context = {
+        'page_obj': pagination(request, posts, settings.AMOUNT_POSTS)
+    }
+
+    return render(request, 'posts/follow.html', context)
+
+
+@login_required
+def profile_follow(request, username):
+    # Подписаться на автора
+    author = get_object_or_404(User, username=username)
+    if request.user != author:
+        following = Follow.objects.create(user=request.user, author=author)
+        following.save()
+        return redirect('posts:profile', username=username)
+    return redirect('posts:profile', username=username)
+
+
+@login_required
+def profile_unfollow(request, username):
+    # Дизлайк, отписка
+    author = get_object_or_404(User, username=username)
+    unfollowing = Follow.objects.get(user=request.user, author=author)
+    unfollowing.delete()
+    return redirect('posts:profile', username=username)
