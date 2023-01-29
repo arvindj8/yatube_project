@@ -3,8 +3,8 @@ from http import HTTPStatus
 from django import forms
 from django.test import Client, TestCase
 from django.urls import reverse
-from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 
 from posts.models import User
 

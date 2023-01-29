@@ -4,8 +4,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import cache_page
 
 from core.my_functions.pagination import pagination
-from posts.forms import PostForm, CommentForm
-from posts.models import Group, Post, User, Follow
+from posts.forms import CommentForm, PostForm
+from posts.models import Follow, Group, Post, User
 
 
 @cache_page(20, key_prefix='index_page')
