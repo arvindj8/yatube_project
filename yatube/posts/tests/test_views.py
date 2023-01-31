@@ -279,6 +279,11 @@ class FollowTests(TestCase):
         self.authorized_user = Client()
         self.authorized_user.force_login(user=self.user)
 
+    def _create_following_author(self):
+        """Создаем подписку на любимого автора"""
+        self.authorized_user.get(reverse('posts:profile_follow',
+                                         kwargs={'username': self.author}))
+
     def test_templates_follow_used(self):
         """Проверяем, что страница вывода постов любимых авторов
         использует соответствующий html шаблон"""
@@ -291,8 +296,7 @@ class FollowTests(TestCase):
         quantity_following_one = Follow.objects.count()
 
         # Создаем подписку на любимого автора
-        self.authorized_user.get(reverse('posts:profile_follow',
-                                         kwargs={'username': self.author}))
+        self._create_following_author()
 
         # Проверяем, что пользователь подписался на любимого автора
         quantity_following_second = Follow.objects.count()
@@ -312,13 +316,14 @@ class FollowTests(TestCase):
         # Проверяем, что пользователь подписался на автора
         quantity_following_second = Follow.objects.count()
 
-        # Создаем отписку от любимого автора
+        # Создаем подписку на любимого автора
         self.authorized_user.get(reverse('posts:profile_unfollow',
                                          kwargs={'username': self.author}))
-
         quantity_following_three = Follow.objects.count()
 
+        # Проверяем, что автор добавился в подписку
         self.assertEqual(quantity_following_second, quantity_following_one + 1)
+        # Проверяем, что автор удалился из подписки
         self.assertEqual(quantity_following_three, quantity_following_one)
 
     def test_posts_correct_show_following(self):
@@ -336,6 +341,26 @@ class FollowTests(TestCase):
         first_post_after_follow = response_after_follow.context.get('post')
 
         # Проверяем, что до подписки посты не отображались в ленте
-        self.assertFalse(first_post_after_follow, first_post_before_follow)
+        self.assertIsNone(first_post_before_follow)
         # Проверяем, что после подписки посты отображаются в ленте
-        self.assertEqual(first_post_after_follow, self.post.text)
+        self.assertEqual(first_post_after_follow, self.post)
+
+    def test_add_following_only_one(self):
+        """Тестируем, что пользователь может подписаться от любимого автора"""
+        # Проверяем что пользователь не подписан на авторов
+        quantity_following_one = Follow.objects.count()
+
+        # Создаем подписку на любимого автора два раза
+        self._create_following_author()
+        self._create_following_author()
+        self._create_following_author()
+
+        quantity_following_second = Follow.objects.count()
+
+        # Проверяем, что подписка создалась только один раз
+        self.assertEqual(quantity_following_second, quantity_following_one + 1)
+
+    def test_follow_redirect_anonymous_user(self):
+        """Тестируем доступность страницы follow для анонимного пользователя"""
+        response = self.guest_user.get(reverse('posts:follow_index'))
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)

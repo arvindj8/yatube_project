@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import cache_page
 
-from core.my_functions.pagination import pagination
+from core.utils.pagination import pagination
 from posts.forms import CommentForm, PostForm
 from posts.models import Follow, Group, Post, User
 
@@ -34,9 +34,8 @@ def group_posts(request, slug):
 def profile(request, username):
     author = get_object_or_404(User, username=username)
     posts = author.posts.select_related('group')
-    follow = author.following.select_related('user')
-    if follow:
-        following = True
+    if request.user.is_authenticated:
+        following = author.following.select_related('user')
     else:
         following = False
 
@@ -52,7 +51,7 @@ def profile(request, username):
 def post_detail(request, post_id):
     post = get_object_or_404(Post, pk=post_id)
     form = CommentForm(request.POST or None)
-    comments = post.comments.select_related('post')
+    comments = post.comments.select_related('author')
 
     context = {
         'post': post,
@@ -94,7 +93,7 @@ def post_edit(request, post_id):
     return render(request, 'posts/create_post.html', context)
 
 
-@login_required(login_url='/')
+@login_required
 def add_comment(request, post_id):
     # Получите пост и сохраните его в переменную post.
     post = get_object_or_404(Post, pk=post_id)
@@ -109,9 +108,7 @@ def add_comment(request, post_id):
 
 @login_required
 def follow_index(request):
-    following = Follow.objects.filter(
-        user=request.user).values_list('author', flat=True)
-    posts = Post.objects.filter(author__in=following)
+    posts = Post.objects.filter(author__following__user=request.user)
     context = {
         'page_obj': pagination(request, posts, settings.AMOUNT_POSTS)
     }
@@ -123,10 +120,10 @@ def follow_index(request):
 def profile_follow(request, username):
     # Подписаться на автора
     author = get_object_or_404(User, username=username)
-    if request.user != author:
+    record_following = Follow.objects.filter(user=request.user, author=author)
+    if request.user != author and not record_following.exists():
         following = Follow.objects.create(user=request.user, author=author)
         following.save()
-        return redirect('posts:profile', username=username)
     return redirect('posts:profile', username=username)
 
 
@@ -134,6 +131,6 @@ def profile_follow(request, username):
 def profile_unfollow(request, username):
     # Дизлайк, отписка
     author = get_object_or_404(User, username=username)
-    unfollowing = Follow.objects.get(user=request.user, author=author)
+    unfollowing = Follow.objects.filter(user=request.user, author=author)
     unfollowing.delete()
     return redirect('posts:profile', username=username)

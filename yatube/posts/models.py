@@ -14,21 +14,29 @@ class Group(models.Model):
 
 
 class Post(models.Model):
-    text = models.TextField(verbose_name='Текст поста',
-                            help_text='Текст нового поста')
+    text = models.TextField(
+        verbose_name='Текст поста',
+        help_text='Текст нового поста'
+    )
     pub_date = models.DateTimeField(auto_now_add=True)
-    author = models.ForeignKey(to=User, on_delete=models.CASCADE,
-                               related_name='posts')
-    group = models.ForeignKey(to=Group,
-                              verbose_name='Группа',
-                              help_text='Группа, к которой будет относиться '
-                                        'пост',
-                              on_delete=models.SET_NULL,
-                              blank=True, null=True,
-                              related_name='posts')
-    image = models.ImageField(verbose_name='Картинка',
-                              upload_to='posts/',
-                              blank=True)
+    author = models.ForeignKey(
+        to=User,
+        on_delete=models.CASCADE,
+        related_name='posts'
+    )
+    group = models.ForeignKey(
+        to=Group,
+        verbose_name='Группа',
+        help_text='Группа, к которой будет относиться пост',
+        on_delete=models.SET_NULL,
+        blank=True, null=True,
+        related_name='posts'
+    )
+    image = models.ImageField(
+        verbose_name='Картинка',
+        upload_to='posts/',
+        blank=True
+    )
 
     class Meta:
         ordering = ['-pub_date']
@@ -38,10 +46,16 @@ class Post(models.Model):
 
 
 class Comment(models.Model):
-    post = models.ForeignKey(to=Post, on_delete=models.CASCADE,
-                             related_name='comments')
-    author = models.ForeignKey(to=User, on_delete=models.CASCADE,
-                               related_name='comments')
+    post = models.ForeignKey(
+        to=Post,
+        on_delete=models.CASCADE,
+        related_name='comments'
+    )
+    author = models.ForeignKey(
+        to=User,
+        on_delete=models.CASCADE,
+        related_name='comments'
+    )
     text = models.TextField()
     created = models.DateTimeField(auto_now_add=True)
 
@@ -50,8 +64,16 @@ class Comment(models.Model):
 
 
 class Follow(models.Model):
-    user = models.ForeignKey(to=User, on_delete=models.CASCADE,
-                             related_name='follower')
+    user = models.ForeignKey(
+        to=User,
+        on_delete=models.CASCADE,
+        related_name='follower'
+    )
+    author = models.ForeignKey(
+        to=User,
+        on_delete=models.CASCADE,
+        related_name='following'
+    )
 
-    author = models.ForeignKey(to=User, on_delete=models.CASCADE,
-                               related_name='following')
+    class Meta:
+        unique_together = ['author']

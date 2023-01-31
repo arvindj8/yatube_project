@@ -1,3 +1,4 @@
+import http
 import shutil
 import tempfile
 
@@ -14,8 +15,6 @@ from posts.models import Comment, Group, Post, User
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
 
-# Для сохранения media-файлов в тестах будет использоваться
-# временная папка TEMP_MEDIA_ROOT, а потом мы ее удалим
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostCreateFormTests(TestCase):
     @classmethod
@@ -150,6 +149,16 @@ class PostCreateFormTests(TestCase):
             text=self.post.text,
             group=self.post.group,
             image='posts/small.gif').exists())
+
+    def test_redirect_comment_form(self):
+        """Тестируем, что при переходе на страницу comment/id анонимного
+        пользователя направляет на главную страницу"""
+        # response = self.client.get(f'/posts/{self.post.id}/comment/').url
+        response = self.client.get(reverse('posts:add_comment',
+                                           kwargs={'post_id': self.post.id}))
+        self.assertEqual(response.status_code, http.HTTPStatus.FOUND)
+        self.assertRedirects(response, reverse('users:login') + '?next='
+                             + f'/posts/{self.post.id}/comment/')
 
     def test_send_comment_correct_show_post_page_auth_user(self):
         """После успешной отправки авторизованным пользователем
