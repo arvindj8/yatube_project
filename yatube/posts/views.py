@@ -88,8 +88,6 @@ class PostDetailView(FormView):
             context['likes'] = context['post'].likes.select_related('user')
             context['like_record'] = Like.objects.filter(
                 post_id=self.kwargs.get('post_id'), user=self.request.user)
-        else:
-            return False
         return context
 
 
