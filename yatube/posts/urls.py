@@ -11,8 +11,7 @@ app_name = 'posts'
 
 urlpatterns = [
     path('',
-         cache_page(20, key_prefix='index_page')
-         (IndexListView.as_view()),
+         IndexListView.as_view(),
          name='index'),
 
     path('group/<slug:slug>/',
