@@ -31,7 +31,7 @@ urlpatterns = [
          name='post_detail'),
 
     path('posts/<int:post_id>/comment/',
-         CommentCreateView.as_view(),
+         login_required(CommentCreateView.as_view()),
          name='add_comment'),
 
     path('posts/<int:post_id>/edit/',
