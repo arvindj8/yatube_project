@@ -8,6 +8,16 @@
 {% block content %}
   <div class="container py-5">
     <h1>Последние обновления на сайте</h1>
+    <form class="d-flex">
+      <input name="q" class="form-control me-2" type="search"
+             placeholder="Поиск постов" aria-label="Search"
+        {% if keyword %}
+         value="{{ keyword }}"
+        {% endif %}
+      style="width: 300px"
+      >
+      <button class="btn btn-outline-success" type="submit">Найти</button>
+    </form>
     {% include 'posts/includes/switcher.html' %}
     {% for post in page_obj %}
       {% include 'posts/includes/post_card.html' %}

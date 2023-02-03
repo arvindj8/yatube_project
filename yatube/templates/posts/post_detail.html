@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
-{% load thumbnail %}
-{% load user_filters %}
+{#{% load thumbnail %}#}
+{% load user_filters thumbnail static %}
 
 {% block title %}
   Пост {{ post.text|truncatechars:30 }}
@@ -17,9 +17,12 @@
           {% if not group and post.group %}
             <li class="list-group-item">
               Группа: {{ post.group }}
-              <a href="{% url 'posts:group_list' post.group.slug %}">
-                все записи группы
-              </a>
+              <button type="button" class="btn btn-outline-primary djdt-width-20">
+                <a href="{% url 'posts:group_list' post.group.slug %}"
+                   style="color: black; text-decoration: none; width: 40px">
+                  все записи группы
+                </a>
+            </button>
             </li>
           {% endif %}
           <li class="list-group-item">
@@ -29,9 +32,24 @@
             Всего постов автора:  <span >{{ posts }}</span>
           </li>
           <li class="list-group-item">
-            <a href="{% url 'posts:profile' post.author %}">
+            <button type="button" class="btn btn-outline-primary djdt-width-20">
+              <a href="{% url 'posts:profile' post.author %}"
+              style="color: black; text-decoration: none">
               все посты пользователя
-            </a>
+              </a>
+            </button>
+          </li>
+          <li class="list-group-item">
+            {% if like_record%}
+              <a class="btn btn-lg btn-light" href="{% url 'posts:post_unlike' post.id %}">
+            {% else %}
+              <a class="btn btn-lg btn-light" href="{% url 'posts:post_like' post.id %}">
+            {% endif %}
+              <i class="bi bi-heart-fill">
+                <img src="{% static 'img/fav/heart-fill.svg'%}" alt="heart">
+              </i>
+              {{ likes.count }}
+              </a>
           </li>
         </ul>
       </aside>

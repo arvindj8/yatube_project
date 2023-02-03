@@ -1,5 +1,8 @@
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 
 User = get_user_model()
 
@@ -75,5 +78,23 @@ class Follow(models.Model):
         related_name='following'
     )
 
+    def clean(self):
+        if self.user == self.author:
+            raise ValidationError(
+                _('Нельзя делать подписываться на самого себя'))
+
     class Meta:
         unique_together = ['author']
+
+
+class Like(models.Model):
+    post = models.ForeignKey(to=Post,
+                             on_delete=models.CASCADE,
+                             related_name='likes')
+    user = models.ForeignKey(to=User,
+                             on_delete=models.CASCADE,
+                             related_name='likes')
+    like = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return self.post.text

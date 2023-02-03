@@ -1,136 +1,198 @@
 from django.conf import settings
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.cache import cache_page
+from django.urls import reverse_lazy
+from django.views.generic.edit import CreateView, FormView, UpdateView
+from django.views.generic.list import ListView, View
 
-from core.utils.pagination import pagination
-from posts.forms import CommentForm, PostForm
-from posts.models import Follow, Group, Post, User
-
-
-@cache_page(20, key_prefix='index_page')
-def index(request):
-    title = 'Последние обновления на сайте'
-    posts = Post.objects.select_related('author', 'group')
-
-    context = {
-        'title': title,
-        'page_obj': pagination(request, posts, settings.AMOUNT_POSTS)
-    }
-    return render(request, 'posts/index.html', context)
+from posts.forms import CommentForm
+from posts.models import Comment, Follow, Group, Like, Post, User
 
 
-def group_posts(request, slug):
-    group = get_object_or_404(Group, slug=slug)
-    posts = group.posts.select_related('author')
+class IndexListView(ListView):
+    """Главная страница с функцией поиска постов по ключевому слову"""
+    model = Post
+    template_name = 'posts/index.html'
+    paginate_by = settings.AMOUNT_POSTS
 
-    context = {
-        'group': group,
-        'page_obj': pagination(request, posts, settings.AMOUNT_POSTS)
-    }
-    return render(request, 'posts/group_list.html', context)
+    def get_queryset(self):
+        keyword = self.request.GET.get("q", None)
+        if keyword:
+            page_obj = Post.objects.select_related('author', 'group').filter(
+                text__contains=keyword)
+        else:
+            page_obj = Post.objects.select_related('author', 'group')
+        return page_obj
 
-
-def profile(request, username):
-    author = get_object_or_404(User, username=username)
-    posts = author.posts.select_related('group')
-    if request.user.is_authenticated:
-        following = author.following.select_related('user')
-    else:
-        following = False
-
-    context = {
-        'page_obj': pagination(request, posts, settings.AMOUNT_POSTS),
-        'posts': posts,
-        'author': author,
-        'following': following
-    }
-    return render(request, 'posts/profile.html', context)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Последние обновления на сайте'
+        return context
 
 
-def post_detail(request, post_id):
-    post = get_object_or_404(Post, pk=post_id)
-    form = CommentForm(request.POST or None)
-    comments = post.comments.select_related('author')
+class GroupPostsListView(ListView):
+    """Страница постов привязанная к конкретной группе"""
+    model = Post
+    template_name = 'posts/group_list.html'
+    paginate_by = settings.AMOUNT_POSTS
 
-    context = {
-        'post': post,
-        'posts': post.author.posts.count(),
-        'form': form,
-        'comments': comments
-    }
-    return render(request, 'posts/post_detail.html', context)
+    def get_queryset(self):
+        group = get_object_or_404(Group, slug=self.kwargs.get('slug'))
+        queryset = group.posts.select_related('author')
+        return queryset
 
-
-@login_required
-def post_create(request):
-    form = PostForm(request.POST or None, files=request.FILES or None)
-    if form.is_valid():
-        post = form.save(commit=False)
-        post.author = request.user
-        post.save()
-        return redirect('posts:profile', post.author)
-    return render(request, 'posts/create_post.html', context={'form': form})
+    def get_context_data(self, *, object_list=None, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['group'] = get_object_or_404(
+            Group, slug=self.kwargs.get('slug')
+        )
+        return context
 
 
-@login_required
-def post_edit(request, post_id):
-    post = get_object_or_404(Post, id=post_id)
-    form = PostForm(request.POST or None,
-                    files=request.FILES or None,
-                    instance=post)
-    if form.is_valid() and request.user == post.author:
-        form.save()
-        return redirect('posts:post_detail', post_id)
+class ProfileListView(ListView):
+    """Карточка профайла автора с возможностью подписаться или отписаться"""
+    model = Post
+    template_name = 'posts/profile.html'
+    paginate_by = settings.AMOUNT_POSTS
 
-    if request.user != post.author:
-        return redirect('posts:post_detail', post_id)
+    def get_queryset(self):
+        author = get_object_or_404(User, username=self.kwargs.get('username'))
+        queryset = author.posts.select_related('group')
+        return queryset
 
-    context = {
-        'form': form,
-        'is_edit': True
-    }
-    return render(request, 'posts/create_post.html', context)
-
-
-@login_required
-def add_comment(request, post_id):
-    # Получите пост и сохраните его в переменную post.
-    post = get_object_or_404(Post, pk=post_id)
-    form = CommentForm(request.POST or None)
-    if form.is_valid():
-        comment = form.save(commit=False)
-        comment.author = request.user
-        comment.post = post
-        comment.save()
-    return redirect('posts:post_detail', post_id=post_id)
+    def get_context_data(self, *, object_list=None, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['author'] = get_object_or_404(
+            User, username=self.kwargs.get('username'))
+        context['posts'] = self.get_queryset()
+        if self.request.user.is_authenticated:
+            context['following'] = context['author'].following.select_related(
+                'user'
+            )
+        else:
+            context['following'] = False
+        return context
 
 
-@login_required
-def follow_index(request):
-    posts = Post.objects.filter(author__following__user=request.user)
-    context = {
-        'page_obj': pagination(request, posts, settings.AMOUNT_POSTS)
-    }
+class PostDetailView(FormView):
+    """Карточка поста с формой комментария и лайками"""
+    form_class = CommentForm
+    template_name = 'posts/post_detail.html'
 
-    return render(request, 'posts/follow.html', context)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['post'] = get_object_or_404(
+            Post, id=self.kwargs.get('post_id'))
+        context['posts'] = context['post'].author.posts.count()
+        context['comments'] = context['post'].comments.select_related('author')
+        if self.request.user.is_authenticated:
+            context['likes'] = context['post'].likes.select_related('user')
+            context['like_record'] = Like.objects.filter(
+                post_id=self.kwargs.get('post_id'), user=self.request.user)
+        else:
+            return False
+        return context
 
 
-@login_required
-def profile_follow(request, username):
+class PostCreateView(CreateView):
+    """Создание поста"""
+    model = Post
+    template_name = 'posts/create_post.html'
+    fields = ['text', 'group', 'image']
+
+    def get_success_url(self):
+        return reverse_lazy('posts:profile', args=[self.object.author])
+
+    def form_valid(self, form):
+        form.instance.author = self.request.user
+        return super().form_valid(form)
+
+
+class PostEditView(UpdateView):
+    """Редактирование поста"""
+    model = Post
+    template_name = 'posts/create_post.html'
+    fields = ['text', 'group', 'image']
+    pk_url_kwarg = 'post_id'
+
+    def dispatch(self, request, *args, **kwargs):
+        post = get_object_or_404(Post, id=self.kwargs.get('post_id'))
+        if self.request.user != post.author:
+            return redirect('posts:post_detail', self.kwargs.get('post_id'))
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_success_url(self):
+        return reverse_lazy('posts:post_detail', args=[self.object.id])
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_edit'] = True
+        return context
+
+
+class CommentCreateView(CreateView):
+    """Создание комментарий"""
+    model = Comment
+    fields = ['text']
+
+    def get_success_url(self):
+        return reverse_lazy(
+            'posts:post_detail', kwargs={'post_id': self.kwargs['post_id']})
+
+    def form_valid(self, form):
+        form.instance.author = self.request.user
+        form.instance.post = get_object_or_404(Post,
+                                               id=self.kwargs.get('post_id'))
+        return super().form_valid(form)
+
+
+class FollowIndexListView(ListView):
+    """Отображение постов любимых авторов"""
+    model = Post
+    template_name = 'posts/follow.html'
+    paginate_by = settings.AMOUNT_POSTS
+
+    def get_queryset(self):
+        future_posts = Post.objects.filter(
+            author__following__user=self.request.user)
+        return future_posts
+
+
+class ProfileFollowView(View):
     # Подписаться на автора
-    author = get_object_or_404(User, username=username)
-    record_following = Follow.objects.filter(user=request.user, author=author)
-    if request.user != author and not record_following.exists():
-        following = Follow.objects.create(user=request.user, author=author)
-        following.save()
-    return redirect('posts:profile', username=username)
+    def get(self, request, *args, **kwargs):
+        author = get_object_or_404(User, username=self.kwargs.get('username'))
+        if request.user != author:
+            Follow.objects.get_or_create(user=request.user, author=author)
+        return redirect('posts:profile', author.username)
 
 
-@login_required
-def profile_unfollow(request, username):
-    # Дизлайк, отписка
-    author = get_object_or_404(User, username=username)
-    unfollowing = Follow.objects.filter(user=request.user, author=author)
-    unfollowing.delete()
-    return redirect('posts:profile', username=username)
+class ProfileUnfollowView(View):
+    """Отписка от автора"""
+
+    def get(self, request, *args, **kwargs):
+        author = get_object_or_404(User, username=self.kwargs.get('username'))
+        unfollowing = Follow.objects.filter(user=request.user, author=author)
+        unfollowing.delete()
+        return redirect('posts:profile', author.username)
+
+
+class LikePostView(ListView):
+    """Лайк"""
+
+    def get(self, request, *args, **kwargs):
+        post = get_object_or_404(Post, id=self.kwargs.get('post_id'))
+        if self.request.user.is_authenticated:
+            Like.objects.get_or_create(post_id=post.id,
+                                       user=request.user,
+                                       like=1)
+        return redirect('posts:post_detail', post.id)
+
+
+class UnlikePost(ListView):
+    """Дизлайк"""
+
+    def get(self, request, *args, **kwargs):
+        record_like = Like.objects.filter(
+            post_id=self.kwargs.get('post_id'), user=request.user)
+        record_like.delete()
+        return redirect('posts:post_detail', self.kwargs.get('post_id'))

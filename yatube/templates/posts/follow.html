@@ -2,12 +2,12 @@
 {% load static %}
 
 {% block title %}
-  Тут выводятся посты автора
+  Тут выводятся посты любимого автора
 {% endblock %}
 
 {% block content %}
   <div class="container py-5">
-    <h1>Тут выводятся посты автора</h1>
+    <h1>Тут выводятся посты любимого автора</h1>
     {% include 'posts/includes/switcher.html' %}
     {% for post in page_obj %}
       {% include 'posts/includes/post_card.html' %}
