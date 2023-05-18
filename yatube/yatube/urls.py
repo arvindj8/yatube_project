@@ -24,6 +24,7 @@ urlpatterns = [
     path('about/', include('about.urls', namespace='about')),
     path('auth/', include('users.urls')),
     path('auth/', include('django.contrib.auth.urls')),
+    path('api/', include('api.urls', namespace='api_posts')),
 ]
 
 handler403 = 'core.views.permission_denied'

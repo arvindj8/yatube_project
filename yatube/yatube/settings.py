@@ -33,6 +33,8 @@ INSTALLED_APPS = [
     'posts.apps.PostsConfig',
     'users.apps.UsersConfig',
     'core.apps.CoreConfig',
+    'rest_framework',
+    # 'markdown',
 
     'sorl.thumbnail',
     'debug_toolbar',
@@ -145,3 +147,13 @@ EMAIL_FILE_PATH = os.path.join(BASE_DIR, 'sent_emails')
 AMOUNT_POSTS = 10
 LOGIN_URL = 'users:login'
 LOGIN_REDIRECT_URL = 'posts:index'
+
+
+# Django REST Framework
+
+REST_FRAMEWORK = {
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ]
+}
